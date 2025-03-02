@@ -40,6 +40,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <system_error>
+#include "llvm/Transforms/Utils/TapirUtils.h"
+
 
 using namespace llvm;
 
@@ -2641,6 +2643,12 @@ LLVMBasicBlockRef LLVMGetFirstBasicBlock(LLVMValueRef Fn) {
   if (I == Func->end())
     return nullptr;
   return wrap(&*I);
+}
+
+LLVMBasicBlockRef LLVMGetDetachedCtx(LLVMBasicBlockRef BB) {
+  BasicBlock *block = unwrap(BB);
+  BasicBlock *result = GetDetachedCtx(block);
+  return wrap(result);
 }
 
 LLVMBasicBlockRef LLVMGetLastBasicBlock(LLVMValueRef Fn) {
