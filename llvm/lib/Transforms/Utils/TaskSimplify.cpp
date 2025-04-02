@@ -71,9 +71,11 @@ static bool syncMatchesReachingTask(const Value *SyncSR,
   return false;
 }
 
-static bool removeRedundantSyncs(MaybeParallelTasks &MPTasks, Task *T) {
+static bool removeRedundantSyncs(MaybeParallelTasks &MPTasks, Task *T, bool orphaning) {
   // Skip tasks with no subtasks.
   if (T->isSerial())
+    return false;
+  if (orphaning)
     return false;
 
   bool Changed = false;
@@ -187,7 +189,7 @@ static bool removeRedundantSyncRegions(MaybeParallelTasks &MPTasks, Task *T) {
   return Changed;
 }
 
-bool llvm::simplifySyncs(Task *T, MaybeParallelTasks &MPTasks) {
+bool llvm::simplifySyncs(Task *T, MaybeParallelTasks &MPTasks, bool orphaning) {
   bool Changed = false;
 
   LLVM_DEBUG(dbgs() << "Simplifying syncs in task @ "
@@ -196,7 +198,7 @@ bool llvm::simplifySyncs(Task *T, MaybeParallelTasks &MPTasks) {
   // Remove redundant syncs.  This optimization might not be necessary here,
   // because SimplifyCFG seems to do a good job removing syncs that cannot sync
   // anything.
-  Changed |= removeRedundantSyncs(MPTasks, T);
+  Changed |= removeRedundantSyncs(MPTasks, T, orphaning);
 
   // Remove redundant sync regions.
   Changed |= removeRedundantSyncRegions(MPTasks, T);
@@ -605,8 +607,9 @@ bool TaskSimplify::runOnFunction(Function &F) {
   TI.evaluateParallelState<MaybeParallelTasks>(MPTasks);
 
   // Simplify syncs in each task in the function.
+  bool orphaning = F.hasFnAttribute(Attribute::Orphaning);
   for (Task *T : post_order(TI.getRootTask()))
-    Changed |= simplifySyncs(T, MPTasks);
+    Changed |= simplifySyncs(T, MPTasks, orphaning);
 
   // Simplify each task in the function.
   for (Task *T : post_order(TI.getRootTask()))
@@ -683,8 +686,9 @@ PreservedAnalyses TaskSimplifyPass::run(Function &F,
   TI.evaluateParallelState<MaybeParallelTasks>(MPTasks);
 
   // Simplify syncs in each task in the function.
+  bool orphaning = F.hasFnAttribute(Attribute::Orphaning);
   for (Task *T : post_order(TI.getRootTask()))
-    Changed |= simplifySyncs(T, MPTasks);
+    Changed |= simplifySyncs(T, MPTasks, orphaning);
 
   // Simplify each task in the function.
   for (Task *T : post_order(TI.getRootTask()))

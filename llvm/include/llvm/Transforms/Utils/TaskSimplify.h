@@ -28,7 +28,7 @@ public:
 };
 
 /// Simplify syncs in the specified task T.
-bool simplifySyncs(Task *T, MaybeParallelTasks &MPTasks);
+bool simplifySyncs(Task *T, MaybeParallelTasks &MPTasks, bool orphaning);
 
 /// Simplify the specified task T.
 bool simplifyTask(Task *T);

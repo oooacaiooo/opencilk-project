@@ -724,6 +724,7 @@ enum AttributeKindCodes {
   ATTR_KIND_HYPER_VIEW = 93,
   ATTR_KIND_REDUCER_REGISTER = 94,
   ATTR_KIND_REDUCER_UNREGISTER = 95,
+  ATTR_KIND_ORPHANING = 96,
 };
 
 enum ComdatSelectionKindCodes {
