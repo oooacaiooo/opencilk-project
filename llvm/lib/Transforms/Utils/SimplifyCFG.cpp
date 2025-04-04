@@ -7598,6 +7598,9 @@ static bool serializeDetachOfUnreachable(BasicBlock *BB, DomTreeUpdater *DTU) {
 // no detach instructions.  These sync instructions don't synchronize anything,
 // so they can be removed.
 static bool removeEmptySyncs(BasicBlock *BB) {
+  if (BB->getParent()->hasFnAttribute(Attribute::Orphaning)){
+    return false;
+  }
   if (SyncInst *SI = dyn_cast<SyncInst>(BB->getTerminator())) {
     // Get the sync region containing this sync
     Value *SyncRegion = SI->getSyncRegion();
@@ -7727,7 +7730,11 @@ bool SimplifyCFGOpt::simplifyOnce(BasicBlock *BB) {
     Changed |= simplifyIndirectBr(cast<IndirectBrInst>(Terminator));
     break;
   case Instruction::Sync:
-    Changed |= simplifySync(cast<SyncInst>(Terminator));
+    if (BB->getParent()->hasFnAttribute(Attribute::Orphaning)){
+      break;
+    } else {
+      Changed |= simplifySync(cast<SyncInst>(Terminator));
+    }
   }
 
   return Changed;
@@ -7735,7 +7742,6 @@ bool SimplifyCFGOpt::simplifyOnce(BasicBlock *BB) {
 
 bool SimplifyCFGOpt::run(BasicBlock *BB) {
   bool Changed = false;
-
   // Repeated simplify BB as long as resimplification is requested.
   do {
     Resimplify = false;
