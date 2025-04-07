@@ -1163,7 +1163,6 @@ const BasicBlock *llvm::GetDetachedCtx(const BasicBlock *BB) {
     // we've found the context.
     if (const Value *TaskFrame = getCanonicalTaskFrameCreate(CurrBB))
       if (!TaskFramesToIgnore.count(TaskFrame)){
-        dbgs() << "Found detach context: " << *CurrBB;
         return CurrBB;
       }
 
@@ -1196,7 +1195,6 @@ const BasicBlock *llvm::GetDetachedCtx(const BasicBlock *BB) {
         if (DI->getDetached() == CurrBB){
           // Return the current block, which is the entry of this detached
           // sub-CFG.
-          dbgs() << "Found detach context: " << *CurrBB;
           return CurrBB;
         }
         if (const Value *SubTaskFrame = getTaskFrameUsed(DI->getDetached()))
