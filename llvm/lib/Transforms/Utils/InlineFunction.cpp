@@ -2950,7 +2950,9 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   CallInst *TFCreate = nullptr;
   BasicBlock *TFEntryBlock = DetachedCtxEntryBlock;
   if (InlinedFunctionInfo.ContainsDetach &&
-      (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall)) {
+    (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall) && !(CB.getFunction()->hasFnAttribute(Attribute::Orphaning))) {
+  // if (InlinedFunctionInfo.ContainsDetach &&
+  //     (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall)) {
     Module *M = Caller->getParent();
     // Get the taskframe.create intrinsic.
     Function *TFCreateFn =
