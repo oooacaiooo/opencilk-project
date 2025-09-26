@@ -222,7 +222,7 @@ static bool tailMergeBlocksWithSimilarFunctionTerminators(Function &F,
 
 static bool removeUselessSyncs(Function &F, DomTreeUpdater *DTU) {
   bool Changed = false;
-  if (F.hasFnAttribute(Attribute::Orphaning)){
+  if (F.childrenHaveFnAttribute(Attribute::Orphaning)){
     return false;
   }
   // Scan all the blocks in the function

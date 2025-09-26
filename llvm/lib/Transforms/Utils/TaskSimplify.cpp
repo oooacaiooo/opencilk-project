@@ -607,7 +607,7 @@ bool TaskSimplify::runOnFunction(Function &F) {
   TI.evaluateParallelState<MaybeParallelTasks>(MPTasks);
 
   // Simplify syncs in each task in the function.
-  bool orphaning = F.hasFnAttribute(Attribute::Orphaning);
+  bool orphaning = F.childrenHaveFnAttribute(Attribute::Orphaning);
   for (Task *T : post_order(TI.getRootTask()))
     Changed |= simplifySyncs(T, MPTasks, orphaning);
 
@@ -686,7 +686,7 @@ PreservedAnalyses TaskSimplifyPass::run(Function &F,
   TI.evaluateParallelState<MaybeParallelTasks>(MPTasks);
 
   // Simplify syncs in each task in the function.
-  bool orphaning = F.hasFnAttribute(Attribute::Orphaning);
+  bool orphaning = F.childrenHaveFnAttribute(Attribute::Orphaning);
   for (Task *T : post_order(TI.getRootTask()))
     Changed |= simplifySyncs(T, MPTasks, orphaning);
 

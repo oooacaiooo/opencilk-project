@@ -2734,7 +2734,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   // block for the callee, move them to the entry block of the caller.  First
   // calculate which instruction they should be inserted before.  We insert the
   // instructions at the end of the current alloca list.
-  if (!(CB.getFunction()->hasFnAttribute(Attribute::Orphaning)))
+  if (!(CB.getFunction()->childrenHaveFnAttribute(Attribute::Orphaning)))
     {
       BasicBlock::iterator InsertPoint = DetachedCtxEntryBlock->begin();
       if (isTaskFrameCreate(*InsertPoint))
@@ -2950,7 +2950,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   CallInst *TFCreate = nullptr;
   BasicBlock *TFEntryBlock = DetachedCtxEntryBlock;
   if (InlinedFunctionInfo.ContainsDetach &&
-    (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall) && !(CB.getFunction()->hasFnAttribute(Attribute::Orphaning))) {
+    (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall) && !(CB.getFunction()->childrenHaveFnAttribute(Attribute::Orphaning))) {
   // if (InlinedFunctionInfo.ContainsDetach &&
   //     (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall)) {
     Module *M = Caller->getParent();
