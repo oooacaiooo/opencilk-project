@@ -2734,45 +2734,44 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   // block for the callee, move them to the entry block of the caller.  First
   // calculate which instruction they should be inserted before.  We insert the
   // instructions at the end of the current alloca list.
-  if (!(CB.getFunction()->childrenHaveFnAttribute(Attribute::Orphaning)))
-    {
-      BasicBlock::iterator InsertPoint = DetachedCtxEntryBlock->begin();
-      if (isTaskFrameCreate(*InsertPoint))
-        InsertPoint++;
-      for (BasicBlock::iterator I = FirstNewBlock->begin(),
-          E = FirstNewBlock->end(); I != E; ) {
-        AllocaInst *AI = dyn_cast<AllocaInst>(I++);
-        if (!AI) continue;
+  if (!(CB.getFunction()->childrenHaveFnAttribute(Attribute::Orphaning))){
+    BasicBlock::iterator InsertPoint = DetachedCtxEntryBlock->begin();
+    if (isTaskFrameCreate(*InsertPoint))
+      InsertPoint++;
+    for (BasicBlock::iterator I = FirstNewBlock->begin(),
+        E = FirstNewBlock->end(); I != E; ) {
+      AllocaInst *AI = dyn_cast<AllocaInst>(I++);
+      if (!AI) continue;
 
-        // If the alloca is now dead, remove it.  This often occurs due to code
-        // specialization.
-        if (AI->use_empty()) {
-          AI->eraseFromParent();
-          continue;
-        }
-
-        if (!allocaWouldBeStaticInEntry(AI))
-          continue;
-
-        // Keep track of the static allocas that we inline into the caller.
-        IFI.StaticAllocas.push_back(AI);
-
-        // Scan for the block of allocas that we can move over, and move them
-        // all at once.
-        while (isa<AllocaInst>(I) &&
-              !cast<AllocaInst>(I)->use_empty() &&
-              allocaWouldBeStaticInEntry(cast<AllocaInst>(I))) {
-          IFI.StaticAllocas.push_back(cast<AllocaInst>(I));
-          ++I;
-        }
-
-        // Transfer all of the allocas over in a block.  Using splice means
-        // that the instructions aren't removed from the symbol table, then
-        // reinserted.
-        DetachedCtxEntryBlock->splice(InsertPoint, &*FirstNewBlock,
-                                      AI->getIterator(), I);
+      // If the alloca is now dead, remove it.  This often occurs due to code
+      // specialization.
+      if (AI->use_empty()) {
+        AI->eraseFromParent();
+        continue;
       }
+
+      if (!allocaWouldBeStaticInEntry(AI))
+        continue;
+
+      // Keep track of the static allocas that we inline into the caller.
+      IFI.StaticAllocas.push_back(AI);
+
+      // Scan for the block of allocas that we can move over, and move them
+      // all at once.
+      while (isa<AllocaInst>(I) &&
+            !cast<AllocaInst>(I)->use_empty() &&
+            allocaWouldBeStaticInEntry(cast<AllocaInst>(I))) {
+        IFI.StaticAllocas.push_back(cast<AllocaInst>(I));
+        ++I;
+      }
+
+      // Transfer all of the allocas over in a block.  Using splice means
+      // that the instructions aren't removed from the symbol table, then
+      // reinserted.
+      DetachedCtxEntryBlock->splice(InsertPoint, &*FirstNewBlock,
+                                    AI->getIterator(), I);
     }
+    
     // Move any syncregion_start's into the entry basic block.  Avoid moving
     // syncregions if we'll need to insert a taskframe for this inlined call.
     if (InlinedFunctionInfo.ContainsDetach &&
@@ -2793,6 +2792,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
                                       II->getIterator(), I);
       }
     }
+  }
 
   SmallVector<Value*,4> VarArgsToForward;
   SmallVector<AttributeSet, 4> VarArgsAttrs;
@@ -2948,10 +2948,10 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   // code with llvm.stacksave/llvm.stackrestore intrinsics.
   CallInst *TFCreate = nullptr;
   BasicBlock *TFEntryBlock = DetachedCtxEntryBlock;
-  if (InlinedFunctionInfo.ContainsDetach &&
-    (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall) && !(CB.getFunction()->childrenHaveFnAttribute(Attribute::Orphaning))) {
   // if (InlinedFunctionInfo.ContainsDetach &&
-  //     (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall)) {
+  //   (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall) && !(CB.getFunction()->childrenHaveFnAttribute(Attribute::Orphaning))) {
+  if (InlinedFunctionInfo.ContainsDetach &&
+      (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall)) {
     Module *M = Caller->getParent();
     // Get the taskframe.create intrinsic.
     Function *TFCreateFn =
