@@ -2772,26 +2772,25 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
         DetachedCtxEntryBlock->splice(InsertPoint, &*FirstNewBlock,
                                       AI->getIterator(), I);
       }
+    }
+    // Move any syncregion_start's into the entry basic block.  Avoid moving
+    // syncregions if we'll need to insert a taskframe for this inlined call.
+    if (InlinedFunctionInfo.ContainsDetach &&
+        !InlinedFunctionInfo.ContainsDynamicAllocas && !MayBeUnsyncedAtCall) {
+      for (BasicBlock::iterator I = FirstNewBlock->begin(),
+                                    E = FirstNewBlock->end(); I != E; ) {
+        IntrinsicInst *II = dyn_cast<IntrinsicInst>(I++);
+        if (!II) continue;
+        if (Intrinsic::syncregion_start != II->getIntrinsicID())
+          continue;
 
-      // Move any syncregion_start's into the entry basic block.  Avoid moving
-      // syncregions if we'll need to insert a taskframe for this inlined call.
-      if (InlinedFunctionInfo.ContainsDetach &&
-          !InlinedFunctionInfo.ContainsDynamicAllocas && !MayBeUnsyncedAtCall) {
-        for (BasicBlock::iterator I = FirstNewBlock->begin(),
-                                      E = FirstNewBlock->end(); I != E; ) {
-          IntrinsicInst *II = dyn_cast<IntrinsicInst>(I++);
-          if (!II) continue;
-          if (Intrinsic::syncregion_start != II->getIntrinsicID())
-            continue;
+        while (isa<IntrinsicInst>(I) &&
+              Intrinsic::syncregion_start ==
+              cast<IntrinsicInst>(I)->getIntrinsicID())
+          ++I;
 
-          while (isa<IntrinsicInst>(I) &&
-                Intrinsic::syncregion_start ==
-                cast<IntrinsicInst>(I)->getIntrinsicID())
-            ++I;
-
-          DetachedCtxEntryBlock->splice(InsertPoint, &*FirstNewBlock,
-                                        II->getIterator(), I);
-        }
+        DetachedCtxEntryBlock->splice(InsertPoint, &*FirstNewBlock,
+                                      II->getIterator(), I);
       }
     }
 
