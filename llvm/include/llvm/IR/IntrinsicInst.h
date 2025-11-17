@@ -119,6 +119,7 @@ public:
     case Intrinsic::coro_suspend:
     case Intrinsic::coro_subfn_addr:
     case Intrinsic::syncregion_start:
+    case Intrinsic::orphaning_syncregion_start:
     case Intrinsic::taskframe_create:
     case Intrinsic::taskframe_use:
     case Intrinsic::taskframe_end:

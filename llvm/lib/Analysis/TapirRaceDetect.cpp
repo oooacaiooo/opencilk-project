@@ -560,6 +560,7 @@ static bool checkInstructionForRace(const Instruction *I,
       case Intrinsic::var_annotation:
       case Intrinsic::experimental_noalias_scope_decl:
       case Intrinsic::syncregion_start:
+      case Intrinsic::orphaning_syncregion_start:
       case Intrinsic::taskframe_create:
       case Intrinsic::taskframe_use:
       case Intrinsic::taskframe_end:

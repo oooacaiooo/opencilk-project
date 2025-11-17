@@ -2730,11 +2730,68 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
             IFI.GetAssumptionCache(*Caller).registerAssumption(II);
   }
 
+  // Check if caller uses orphaning_sync_region
+  IntrinsicInst *OSRI = nullptr;
+  Value *CallerOrphaningSyncRegion = nullptr;
+  ConstantInt *OrphaningSyncRegionCounter = nullptr;
+
+  for (BasicBlock &BB : *Caller) {
+    for (Instruction &I : BB) {
+      if (auto *II = dyn_cast<IntrinsicInst>(&I)) {
+        if (II->getIntrinsicID() == Intrinsic::orphaning_sync_region) {
+          OSRI = II;
+          CallerOrphaningSyncRegion = II->getArgOperand(0);
+          OrphaningSyncRegionCounter = dyn_cast<ConstantInt>(II->getArgOperand(1));
+          assert(OrphaningSyncRegionCounter && 
+                OrphaningSyncRegionCounter->getZExtValue() > 0 && 
+                "OrphaningSyncRegionCounter should be a positive constant");
+          break;
+        }
+      }
+    }
+    if (OrphaningSyncRegionCounter) break;
+  }
+
+  // If the callee is orphaning, find and replace all sync regions
+  if (OrphaningSyncRegionCounter && CalledFunc->getAttributes().hasFnAttr(Attribute::Orphaning)){
+
+    // This should be the the value returned by the first (and only) llvm.syncregion.start in the clone of the callee
+    Value *TargetSyncRegion = nullptr;
+    for (Function::iterator BB = FirstNewBlock, E = Caller->end(); BB != E; ++BB) { // iterate through cloned callee
+      for (Instruction &I : BB) {
+        if (auto *II = dyn_cast<IntrinsicInst>(&I)) {
+          if (II->getIntrinsicID() == Intrinsic::syncregion_start) {
+            TargetSyncRegion = II;
+            break;
+          }
+        }
+      }
+      if (TargetSyncRegion) break;
+    }
+    assert(TargetSyncRegion && "No sync region found in orphaning function");
+
+    // replace TargetSyncRegion in every Detach, Reattach, and Sync instruction
+    TargetSyncRegion->replaceAllUsesWith(CallerOrphaningSyncRegion);
+    // we do not remove TargetSyncRegion here 
+    // QUESTION: Will there be a problem if we have nested cilk_for and the innermost closure is inlined before the outer closure is inlined?
+
+    // decrement OrphaningSyncRegionCounter 
+    uint64_t NewCount = OrphaningSyncRegionCounter->getZExtValue() - 1;
+    if (NewCount > 0) {
+      // update the intrinisic with new count
+      auto *NewCounter = ConstantInt::get(OrphaningSyncRegionCounter->getType(), NewCount);
+      OSRI->setArgOperand(1, NewCounter);
+    } else {
+      // remove the intrinsic because all orphaning closures in the caller function have been inlined with the caller's sync region
+      OSRI->eraseFromParent();
+    }
+  }
+
   // If there are any alloca instructions in the block that used to be the entry
   // block for the callee, move them to the entry block of the caller.  First
   // calculate which instruction they should be inserted before.  We insert the
   // instructions at the end of the current alloca list.
-  if (!(CB.getFunction()->childrenHaveFnAttribute(Attribute::Orphaning))){
+  if (!(CalledFunc->getAttributes().hasFnAttr(Attribute::Orphaning))){
     BasicBlock::iterator InsertPoint = DetachedCtxEntryBlock->begin();
     if (isTaskFrameCreate(*InsertPoint))
       InsertPoint++;
@@ -2775,6 +2832,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
 
   // Move any syncregion_start's into the entry basic block.  Avoid moving
   // syncregions if we'll need to insert a taskframe for this inlined call.
+  // TODO: maybe we don't want to move syncregion_starts which are inside orphaning functions
   if (InlinedFunctionInfo.ContainsDetach &&
       !InlinedFunctionInfo.ContainsDynamicAllocas && !MayBeUnsyncedAtCall) {
     BasicBlock::iterator InsertPoint = DetachedCtxEntryBlock->begin();

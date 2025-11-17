@@ -177,6 +177,7 @@ void CodeMetrics::analyzeBasicBlock(
     if (I.getType()->isTokenTy() && I.isUsedOutsideOfBlock(BB)) {
       if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I)) {
         if (Intrinsic::syncregion_start != II->getIntrinsicID() &&
+            Intrinsic::orphaning_syncregion_start != II->getIntrinsicID() &&
             Intrinsic::taskframe_create != II->getIntrinsicID() &&
             Intrinsic::taskframe_use != II->getIntrinsicID() &&
             Intrinsic::taskframe_resume != II->getIntrinsicID() &&
