@@ -2730,35 +2730,30 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
             IFI.GetAssumptionCache(*Caller).registerAssumption(II);
   }
 
-  // Check if caller uses orphaning_sync_region
+  // Check if caller uses orphaning_syncregion
   IntrinsicInst *OSRI = nullptr;
   Value *CallerOrphaningSyncRegion = nullptr;
-  ConstantInt *OrphaningSyncRegionCounter = nullptr;
 
   for (BasicBlock &BB : *Caller) {
     for (Instruction &I : BB) {
       if (auto *II = dyn_cast<IntrinsicInst>(&I)) {
-        if (II->getIntrinsicID() == Intrinsic::orphaning_sync_region) {
+        if (II->getIntrinsicID() == Intrinsic::orphaning_syncregion) {
           OSRI = II;
           CallerOrphaningSyncRegion = II->getArgOperand(0);
-          OrphaningSyncRegionCounter = dyn_cast<ConstantInt>(II->getArgOperand(1));
-          assert(OrphaningSyncRegionCounter && 
-                OrphaningSyncRegionCounter->getZExtValue() > 0 && 
-                "OrphaningSyncRegionCounter should be a positive constant");
           break;
         }
       }
     }
-    if (OrphaningSyncRegionCounter) break;
+    if (CallerOrphaningSyncRegion) break;
   }
 
   // If the callee is orphaning, find and replace all sync regions
-  if (OrphaningSyncRegionCounter && CalledFunc->getAttributes().hasFnAttr(Attribute::Orphaning)){
+  if (CallerOrphaningSyncRegion && CalledFunc->getAttributes().hasFnAttr(Attribute::Orphaning)){
 
     // This should be the the value returned by the first (and only) llvm.syncregion.start in the clone of the callee
     Value *TargetSyncRegion = nullptr;
     for (Function::iterator BB = FirstNewBlock, E = Caller->end(); BB != E; ++BB) { // iterate through cloned callee
-      for (Instruction &I : BB) {
+      for (Instruction &I : *BB) {
         if (auto *II = dyn_cast<IntrinsicInst>(&I)) {
           if (II->getIntrinsicID() == Intrinsic::syncregion_start) {
             TargetSyncRegion = II;
@@ -2775,16 +2770,8 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
     // we do not remove TargetSyncRegion here 
     // QUESTION: Will there be a problem if we have nested cilk_for and the innermost closure is inlined before the outer closure is inlined?
 
-    // decrement OrphaningSyncRegionCounter 
-    uint64_t NewCount = OrphaningSyncRegionCounter->getZExtValue() - 1;
-    if (NewCount > 0) {
-      // update the intrinisic with new count
-      auto *NewCounter = ConstantInt::get(OrphaningSyncRegionCounter->getType(), NewCount);
-      OSRI->setArgOperand(1, NewCounter);
-    } else {
-      // remove the intrinsic because all orphaning closures in the caller function have been inlined with the caller's sync region
-      OSRI->eraseFromParent();
-    }
+    // consume the orphaning_syncregion intrinsic
+    OSRI->eraseFromParent();
   }
 
   // If there are any alloca instructions in the block that used to be the entry

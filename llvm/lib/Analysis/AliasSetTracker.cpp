@@ -421,7 +421,7 @@ void AliasSetTracker::addUnknown(Instruction *Inst) {
     case Intrinsic::sideeffect:
     case Intrinsic::pseudoprobe:
     case Intrinsic::syncregion_start:
-    case Intrinsic::orphaning_syncregion_start:
+    case Intrinsic::orphaning_syncregion:
     case Intrinsic::taskframe_create:
     case Intrinsic::taskframe_use:
     case Intrinsic::taskframe_end:
