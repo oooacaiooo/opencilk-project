@@ -645,6 +645,14 @@ void CallInst::init(FunctionType *FTy, Value *Func, ArrayRef<Value *> Args,
 
 #ifndef NDEBUG
   llvm::errs() << "CallInst::init debugging:\n";
+  
+  // Print the function being called
+  if (Function *F = dyn_cast<Function>(Func)) {
+    llvm::errs() << "  Function name: " << F->getName() << "\n";
+  } else {
+    llvm::errs() << "  Function value: " << *Func << "\n";
+  }
+  
   llvm::errs() << "  Function type: " << *FTy << "\n";
   llvm::errs() << "  Num params expected: " << FTy->getNumParams() << "\n";
   llvm::errs() << "  Num args provided: " << Args.size() << "\n";
