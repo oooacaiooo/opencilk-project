@@ -397,6 +397,7 @@ static bool skipInstruction(const Instruction &I) {
     case Intrinsic::experimental_gc_relocate:
     case Intrinsic::experimental_noalias_scope_decl:
     case Intrinsic::syncregion_start:
+    case Intrinsic::orphaning_syncregion:
     case Intrinsic::taskframe_create:
       return true;
     default:
