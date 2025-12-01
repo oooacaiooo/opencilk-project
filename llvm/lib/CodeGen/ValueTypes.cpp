@@ -575,7 +575,7 @@ MVT MVT::getVT(Type *Ty, bool HandleUnknown){
   switch (Ty->getTypeID()) {
   default:
     if (HandleUnknown) return MVT(MVT::Other);
-    llvm_unreachable("Unknown type! %s", Ty->getCPPClassName());
+    llvm_unreachable("Unknown type!");
   case Type::VoidTyID:
     return MVT::isVoid;
   case Type::IntegerTyID:
