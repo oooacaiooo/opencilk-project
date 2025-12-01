@@ -644,29 +644,6 @@ void CallInst::init(FunctionType *FTy, Value *Func, ArrayRef<Value *> Args,
          "NumOperands not set up?");
 
 #ifndef NDEBUG
-  llvm::errs() << "CallInst::init debugging:\n";
-  
-  // Print the function being called
-  if (Function *F = dyn_cast<Function>(Func)) {
-    llvm::errs() << "  Function name: " << F->getName() << "\n";
-  } else {
-    llvm::errs() << "  Function value: " << *Func << "\n";
-  }
-  
-  llvm::errs() << "  Function type: " << *FTy << "\n";
-  llvm::errs() << "  Num params expected: " << FTy->getNumParams() << "\n";
-  llvm::errs() << "  Num args provided: " << Args.size() << "\n";
-  llvm::errs() << "  Is vararg: " << FTy->isVarArg() << "\n";
-  
-  for (unsigned i = 0; i < Args.size(); ++i) {
-    llvm::errs() << "  Arg[" << i << "]: " << *Args[i] << " (type: " 
-                 << *Args[i]->getType() << ")\n";
-  }
-  
-  for (unsigned i = 0; i < FTy->getNumParams(); ++i) {
-    llvm::errs() << "  Param[" << i << "] expected type: " 
-                 << *FTy->getParamType(i) << "\n";
-  }
   assert((Args.size() == FTy->getNumParams() ||
           (FTy->isVarArg() && Args.size() > FTy->getNumParams())) &&
          "Calling a function with bad signature!");
