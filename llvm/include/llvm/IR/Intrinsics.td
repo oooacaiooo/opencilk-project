@@ -1695,6 +1695,9 @@ def int_syncregion_start
 def int_orphaning_syncregion
     : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn]>;
 
+def int_orphaning_syncregionn
+    : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn]>;
+
 def int_tapir_runtime_start
     : Intrinsic<[llvm_token_ty], [], [IntrArgMemOnly, IntrWillReturn]>;
 

@@ -2737,7 +2737,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   for (BasicBlock &BB : *Caller) {
     for (Instruction &I : BB) {
       if (auto *II = dyn_cast<IntrinsicInst>(&I)) {
-        if (II->getIntrinsicID() == Intrinsic::orphaning_syncregion) {
+        if (II->getIntrinsicID() == Intrinsic::orphaning_syncregionn) {
           OSRI = II;
           CallerOrphaningSyncRegion = II->getArgOperand(0);
           break;
