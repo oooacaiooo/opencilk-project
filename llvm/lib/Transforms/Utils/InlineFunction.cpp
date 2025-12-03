@@ -2995,7 +2995,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   // code with llvm.stacksave/llvm.stackrestore intrinsics.
   CallInst *TFCreate = nullptr;
   BasicBlock *TFEntryBlock = DetachedCtxEntryBlock;
-  if (InlinedFunctionInfo.ContainsDetach &&
+  if (!(CalledFunc->getAttributes().hasFnAttr(Attribute::Orphaning)) && InlinedFunctionInfo.ContainsDetach &&
       (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall)) {
     Module *M = Caller->getParent();
     // Get the taskframe.create intrinsic.
