@@ -3032,7 +3032,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       // the taskframe.
       II->setUnwindDest(TaskFrameUnwindEdge);
     }
-  } else if (InlinedFunctionInfo.ContainsDynamicAllocas) {
+  } else if (!(CalledFunc->getAttributes().hasFnAttr(Attribute::Orphaning)) && InlinedFunctionInfo.ContainsDynamicAllocas) {
     Module *M = Caller->getParent();
     // Get the two intrinsics we care about.
     Function *StackSave = Intrinsic::getDeclaration(M, Intrinsic::stacksave);
