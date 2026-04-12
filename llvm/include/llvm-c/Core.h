@@ -3531,6 +3531,12 @@ LLVM_C_ABI void LLVMGetBasicBlocks(LLVMValueRef Fn,
 LLVM_C_ABI LLVMBasicBlockRef LLVMGetFirstBasicBlock(LLVMValueRef Fn);
 
 /**
+ * Get the entry basic block to the detached context that contains the specified block.
+ */
+LLVMBasicBlockRef LLVMGetDetachedCtx(LLVMBasicBlockRef BB);
+
+
+/**
  * Obtain the last basic block in a function.
  *
  * @see llvm::Function::end()

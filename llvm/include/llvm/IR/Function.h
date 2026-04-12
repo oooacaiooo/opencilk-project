@@ -426,6 +426,12 @@ public:
   /// Return true if the function has the attribute.
   bool hasFnAttribute(StringRef Kind) const;
 
+  // Return set of functions called within the function.
+  std::vector<llvm::Function*> getCalledFunctions() const;
+
+  // Return true if any of the function's called functions have the attribute.
+  bool childrenHaveFnAttribute(Attribute::AttrKind Kind) const;
+
   /// check if an attribute is in the list of attributes for the return value.
   bool hasRetAttribute(Attribute::AttrKind Kind) const;
 

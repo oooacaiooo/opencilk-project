@@ -98,6 +98,7 @@ bool llvm::isSkippableTapirIntrinsic(const Instruction *I) {
       default:
         break;
       case Intrinsic::syncregion_start:
+      case Intrinsic::orphaning_syncregion:
       case Intrinsic::sync_unwind:
       case Intrinsic::taskframe_create:
       case Intrinsic::taskframe_end:
@@ -1202,6 +1203,9 @@ static bool isCanonicalTaskFrameCreate(const Instruction *TFCreate) {
 }
 
 static const Value *getCanonicalTaskFrameCreate(const BasicBlock *BB) {
+  if (BB->sizeWithoutDebug() == 0){
+    return nullptr;
+  }
   if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&BB->front()))
     if (Intrinsic::taskframe_create == II->getIntrinsicID() &&
         isCanonicalTaskFrameCreate(II))
@@ -1228,12 +1232,12 @@ const BasicBlock *llvm::GetDetachedCtx(const BasicBlock *BB) {
     const BasicBlock *CurrBB = WorkList.pop_back_val();
     if (!Visited.insert(CurrBB).second)
       continue;
-
     // If we find a canonical taskframe.create that we're not ignoring, then
     // we've found the context.
     if (const Value *TaskFrame = getCanonicalTaskFrameCreate(CurrBB))
-      if (!TaskFramesToIgnore.count(TaskFrame))
+      if (!TaskFramesToIgnore.count(TaskFrame)){
         return CurrBB;
+      }
 
     for (const BasicBlock *PredBB : predecessors(CurrBB)) {
       // Skip predecessors via reattach instructions.  The detacher block
@@ -1261,10 +1265,11 @@ const BasicBlock *llvm::GetDetachedCtx(const BasicBlock *BB) {
       // that detach spawned the current basic block.
       if (isa<DetachInst>(PredBB->getTerminator())) {
         const DetachInst *DI = cast<DetachInst>(PredBB->getTerminator());
-        if (DI->getDetached() == CurrBB)
+        if (DI->getDetached() == CurrBB){
           // Return the current block, which is the entry of this detached
           // sub-CFG.
           return CurrBB;
+        }
         if (const Value *SubTaskFrame = getTaskFrameUsed(DI->getDetached()))
           // Ignore this tasks's taskframe, if it has one.
           TaskFramesToIgnore.insert(SubTaskFrame);

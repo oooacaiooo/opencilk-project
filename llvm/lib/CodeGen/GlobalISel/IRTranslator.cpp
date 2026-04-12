@@ -2704,6 +2704,9 @@ bool IRTranslator::translateKnownIntrinsic(const CallInst &CI, Intrinsic::ID ID,
     return translateVectorDeinterleave2Intrinsic(CI, MIRBuilder);
   }
 
+  case Intrinsic::orphaning_syncregion:
+    // TODO: is this what we want?
+    llvm_unreachable("llvm.orphaning.syncregion should have been lowered already");
   case Intrinsic::syncregion_start:
     // Lower the starting point of a Tapir sync region to a no-op.
   case Intrinsic::taskframe_load_guard:

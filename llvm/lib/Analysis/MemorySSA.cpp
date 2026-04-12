@@ -324,6 +324,7 @@ instructionClobbersQuery(const MemoryDef *MD, const MemoryLocation &UseLoc,
     case Intrinsic::invariant_start:
     case Intrinsic::invariant_end:
     case Intrinsic::syncregion_start:
+    case Intrinsic::orphaning_syncregion:
     case Intrinsic::taskframe_create:
     case Intrinsic::taskframe_use:
     case Intrinsic::taskframe_end:
@@ -1815,6 +1816,7 @@ MemoryUseOrDef *MemorySSA::createNewAccess(Instruction *I,
     case Intrinsic::experimental_noalias_scope_decl:
     case Intrinsic::pseudoprobe:
     case Intrinsic::syncregion_start:
+    case Intrinsic::orphaning_syncregion:
       return nullptr;
     }
   }

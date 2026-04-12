@@ -3311,16 +3311,60 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
     }
   }
 
+  // Check if caller uses orphaning_syncregion
+  IntrinsicInst *OSRI = nullptr;
+  Value *CallerOrphaningSyncRegion = nullptr;
+
+  for (BasicBlock &BB : *Caller) {
+    for (Instruction &I : BB) {
+      if (auto *II = dyn_cast<IntrinsicInst>(&I)) {
+        if (II->getIntrinsicID() == Intrinsic::orphaning_syncregion) {
+          OSRI = II;
+          CallerOrphaningSyncRegion = II->getArgOperand(0);
+          break;
+        }
+      }
+    }
+    if (CallerOrphaningSyncRegion) break;
+  }
+
+  // If the callee is orphaning, find and replace all sync regions
+  if (CallerOrphaningSyncRegion && CalledFunc->getAttributes().hasFnAttr(Attribute::Orphaning)){
+
+    // This should be the the value returned by the first (and only) llvm.syncregion.start in the clone of the callee
+    Value *TargetSyncRegion = nullptr;
+    for (Function::iterator BB = FirstNewBlock, E = Caller->end(); BB != E; ++BB) { // iterate through cloned callee
+      for (Instruction &I : *BB) {
+        if (auto *II = dyn_cast<IntrinsicInst>(&I)) {
+          if (II->getIntrinsicID() == Intrinsic::syncregion_start) {
+            TargetSyncRegion = II;
+            break;
+          }
+        }
+      }
+      if (TargetSyncRegion) break;
+    }
+    assert(TargetSyncRegion && "No sync region found in orphaning function");
+
+    // replace TargetSyncRegion in every Detach, Reattach, and Sync instruction
+    TargetSyncRegion->replaceAllUsesWith(CallerOrphaningSyncRegion);
+    // we do not remove TargetSyncRegion here 
+    // QUESTION: Will there be a problem if we have nested cilk_for and the innermost closure is inlined before the outer closure is inlined?
+
+    // consume the orphaning_syncregion intrinsic
+    OSRI->eraseFromParent();
+  }
+
   // If there are any alloca instructions in the block that used to be the entry
   // block for the callee, move them to the entry block of the caller.  First
   // calculate which instruction they should be inserted before.  We insert the
   // instructions at the end of the current alloca list.
-  {
+  if (!(CalledFunc->getAttributes().hasFnAttr(Attribute::Orphaning))){
     BasicBlock::iterator InsertPoint = DetachedCtxEntryBlock->begin();
     if (isTaskFrameCreate(*InsertPoint))
       InsertPoint++;
     for (BasicBlock::iterator I = FirstNewBlock->begin(),
-         E = FirstNewBlock->end(); I != E; ) {
+        E = FirstNewBlock->end(); I != E; ) {
       AllocaInst *AI = dyn_cast<AllocaInst>(I++);
       if (!AI) continue;
 
@@ -3340,8 +3384,8 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       // Scan for the block of allocas that we can move over, and move them
       // all at once.
       while (isa<AllocaInst>(I) &&
-             !cast<AllocaInst>(I)->use_empty() &&
-             allocaWouldBeStaticInEntry(cast<AllocaInst>(I))) {
+            !cast<AllocaInst>(I)->use_empty() &&
+            allocaWouldBeStaticInEntry(cast<AllocaInst>(I))) {
         IFI.StaticAllocas.push_back(cast<AllocaInst>(I));
         ++I;
       }
@@ -3353,27 +3397,30 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       DetachedCtxEntryBlock->splice(InsertPoint, &*FirstNewBlock,
                                     AI->getIterator(), I);
     }
+  }
 
-    // Move any syncregion_start's into the entry basic block.  Avoid moving
-    // syncregions if we'll need to insert a taskframe for this inlined call.
-    if (InlinedFunctionInfo.ContainsDetach &&
-        !InlinedFunctionInfo.ContainsDynamicAllocas && !MayBeUnsyncedAtCall) {
-      for (BasicBlock::iterator I = FirstNewBlock->begin(),
-                                    E = FirstNewBlock->end(); I != E; ) {
-        IntrinsicInst *II = dyn_cast<IntrinsicInst>(I++);
-        if (!II) continue;
-        if (Intrinsic::syncregion_start != II->getIntrinsicID())
-          continue;
+  // Move any syncregion_start's into the entry basic block.  Avoid moving
+  // syncregions if we'll need to insert a taskframe for this inlined call.
+  // TODO: maybe we don't want to move syncregion_starts which are inside orphaning functions
+  if (InlinedFunctionInfo.ContainsDetach &&
+      !InlinedFunctionInfo.ContainsDynamicAllocas && !MayBeUnsyncedAtCall) {
+    BasicBlock::iterator InsertPoint = DetachedCtxEntryBlock->begin();
 
-        while (isa<IntrinsicInst>(I) &&
-               Intrinsic::syncregion_start ==
-               cast<IntrinsicInst>(I)->getIntrinsicID())
-          ++I;
+    for (BasicBlock::iterator I = FirstNewBlock->begin(),
+                                  E = FirstNewBlock->end(); I != E; ) {
+      IntrinsicInst *II = dyn_cast<IntrinsicInst>(I++);
+      if (!II) continue;
+      if (Intrinsic::syncregion_start != II->getIntrinsicID())
+        continue;
 
-        I.setTailBit(true);
-        DetachedCtxEntryBlock->splice(InsertPoint, &*FirstNewBlock,
-                                      II->getIterator(), I);
-      }
+      while (isa<IntrinsicInst>(I) &&
+            Intrinsic::syncregion_start ==
+            cast<IntrinsicInst>(I)->getIntrinsicID())
+        ++I;
+
+      I.setTailBit(true);
+      DetachedCtxEntryBlock->splice(InsertPoint, &*FirstNewBlock,
+                                    II->getIterator(), I);
     }
   }
 
@@ -3530,7 +3577,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   // code with llvm.stacksave/llvm.stackrestore intrinsics.
   TaskFrameScope TFI;
   BasicBlock *TFEntryBlock = DetachedCtxEntryBlock;
-  if (InlinedFunctionInfo.ContainsDetach &&
+  if (!(CalledFunc->getAttributes().hasFnAttr(Attribute::Orphaning)) && InlinedFunctionInfo.ContainsDetach &&
       (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall)) {
     Module *M = Caller->getParent();
     // Get the taskframe.create intrinsic.
@@ -3567,7 +3614,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       // the taskframe.
       II->setUnwindDest(TaskFrameUnwindEdge);
     }
-  } else if (InlinedFunctionInfo.ContainsDynamicAllocas) {
+  } else if (!(CalledFunc->getAttributes().hasFnAttr(Attribute::Orphaning)) && InlinedFunctionInfo.ContainsDynamicAllocas) {
     // Insert the llvm.stacksave.
     CallInst *SavedPtr = IRBuilder<>(&*FirstNewBlock, FirstNewBlock->begin())
                              .CreateStackSave("savedstack");

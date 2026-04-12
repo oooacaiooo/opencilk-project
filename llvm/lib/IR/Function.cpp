@@ -732,6 +732,39 @@ bool Function::hasFnAttribute(StringRef Kind) const {
   return AttributeSets.hasFnAttr(Kind);
 }
 
+std::vector<llvm::Function*> Function::getCalledFunctions() const {
+  llvm::SmallPtrSet<llvm::Function*, 8> calledFunctions;
+  // calledFunctions.insert(this);
+  // Iterate through all basic blocks of this function
+  for (auto& BB : *this) {
+      // Iterate through all instructions in each basic block
+      for (auto& I : BB) {
+          // Check if instruction is a call instruction
+          if (auto* CI = llvm::dyn_cast<llvm::CallInst>(&I)) {
+              if (llvm::Function* calledFunc = CI->getCalledFunction()) {
+                  calledFunctions.insert(calledFunc);
+              }
+          }
+          // Also check for invoke instructions (for exception handling)
+          else if (auto* II = llvm::dyn_cast<llvm::InvokeInst>(&I)) {
+              if (llvm::Function* calledFunc = II->getCalledFunction()) {
+                  calledFunctions.insert(calledFunc);
+              }
+          }
+      }
+  }
+  
+  return std::vector<llvm::Function*>(calledFunctions.begin(), calledFunctions.end());
+}
+
+bool Function::childrenHaveFnAttribute(Attribute::AttrKind Kind) const {
+  std::vector<llvm::Function*> calledFunctions = getCalledFunctions();
+  for (auto& calledFunction : calledFunctions) {
+    if (calledFunction->hasFnAttribute(Kind)) return true;
+  }
+  return false;
+}
+
 bool Function::hasRetAttribute(Attribute::AttrKind Kind) const {
   return AttributeSets.hasRetAttr(Kind);
 }

@@ -130,6 +130,7 @@ static bool isDuplicatableIntrinsic(const Instruction &I) {
   if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I))
     if (Intrinsic::syncregion_start == II->getIntrinsicID() ||
         Intrinsic::taskframe_create == II->getIntrinsicID() ||
+        Intrinsic::orphaning_syncregion == II->getIntrinsicID() ||
         Intrinsic::taskframe_use == II->getIntrinsicID() ||
         Intrinsic::taskframe_resume == II->getIntrinsicID() ||
         Intrinsic::taskframe_end == II->getIntrinsicID())

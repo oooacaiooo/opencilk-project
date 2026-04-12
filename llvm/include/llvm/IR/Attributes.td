@@ -375,6 +375,9 @@ def SanitizeCilk : EnumAttr<"sanitize_cilk", IntersectPreserve, [FnAttr]>;
 /// such functions.
 def Stealable : EnumAttr<"stealable", IntersectPreserve, [FnAttr]>;
 
+/// Can have orphans: can have spawns without syncs.
+def Orphaning : EnumAttr<"orphaning", IntersectPreserve, [FnAttr]>;
+
 /// Argument is swift error.
 def SwiftError : EnumAttr<"swifterror", IntersectPreserve, [ParamAttr]>;
 
@@ -502,6 +505,7 @@ def : MergeRule<"setOR<NoJumpTablesAttr>">;
 def : MergeRule<"setOR<ProfileSampleAccurateAttr>">;
 def : MergeRule<"setOR<SpeculativeLoadHardeningAttr>">;
 def : MergeRule<"setOR<StealableAttr>">;
+// TODO (orphaning): what is this for?
 def : MergeRule<"adjustCallerSSPLevel">;
 def : MergeRule<"adjustCallerStackProbes">;
 def : MergeRule<"adjustCallerStackProbeSize">;
