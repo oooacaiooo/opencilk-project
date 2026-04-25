@@ -3225,6 +3225,13 @@ std::optional<InlineResult> llvm::getAttributeBasedInliningDecision(
                                      " address space");
     }
 
+  // Orphaning functions contain Tapir detach/reattach instructions that must
+  // be lowered by TapirToTarget before inlining.  Defer inlining of orphaning
+  // functions so they are only inlined by the AlwaysInlinerPass that runs
+  // inside buildTapirLoweringPipeline (after TapirToTarget has run).
+  if (Callee->hasFnAttribute(Attribute::Orphaning))
+    return InlineResult::failure("orphaning function; defer until after TapirToTarget");
+
   // Calls to functions with always-inline attributes should be inlined
   // whenever possible.
   if (Call.hasFnAttr(Attribute::AlwaysInline)) {

@@ -1304,7 +1304,11 @@ PassBuilder::buildModuleSimplificationPipeline(OptimizationLevel Level,
                  PGOOpt->Action == PGOOptions::SampleUse))
     MPM.addPass(PGOForceFunctionAttrsPass(PGOOpt->ColdOptType));
 
-  MPM.addPass(AlwaysInlinerPass(/*InsertLifetimeIntrinsics=*/true));
+  // Skip orphaning functions here — they must be inlined after TapirToTarget
+  // (inside buildTapirLoweringPipeline) because their Tapir detach/reattach
+  // instructions confuse optimization passes that run in this pipeline.
+  MPM.addPass(AlwaysInlinerPass(/*InsertLifetimeIntrinsics=*/true,
+                                 /*SkipOrphaning=*/true));
 
   if (EnableModuleInliner)
     MPM.addPass(buildModuleInlinerPipeline(Level, Phase));

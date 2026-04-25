@@ -32,10 +32,15 @@ class Pass;
 /// functions once all users are gone.
 class AlwaysInlinerPass : public PassInfoMixin<AlwaysInlinerPass> {
   bool InsertLifetime;
+  // When true, skip inlining functions with the Orphaning attribute.
+  // Orphaning functions must only be inlined after TapirToTarget has run,
+  // because their Tapir detach/reattach instructions confuse optimization
+  // passes (e.g. DemandedBits) that run inside ModuleInlinerWrapperPass.
+  bool SkipOrphaning;
 
 public:
-  AlwaysInlinerPass(bool InsertLifetime = true)
-      : InsertLifetime(InsertLifetime) {}
+  AlwaysInlinerPass(bool InsertLifetime = true, bool SkipOrphaning = false)
+      : InsertLifetime(InsertLifetime), SkipOrphaning(SkipOrphaning) {}
 
   LLVM_ABI PreservedAnalyses run(Module &M, ModuleAnalysisManager &);
   static bool isRequired() { return true; }

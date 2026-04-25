@@ -34,7 +34,8 @@ bool AlwaysInlineImpl(
     Module &M, bool InsertLifetime, ProfileSummaryInfo &PSI,
     FunctionAnalysisManager *FAM,
     function_ref<AssumptionCache &(Function &)> GetAssumptionCache,
-    function_ref<AAResults &(Function &)> GetAAR) {
+    function_ref<AAResults &(Function &)> GetAAR,
+    bool SkipOrphaning = false) {
   SmallSetVector<CallBase *, 16> Calls;
   bool Changed = false;
   SmallVector<Function *, 16> InlinedComdatFunctions;
@@ -44,6 +45,13 @@ bool AlwaysInlineImpl(
       continue;
 
     if (F.isDeclaration() || !isInlineViable(F).isSuccess())
+      continue;
+
+    // Orphaning functions contain Tapir detach/reattach instructions that must
+    // be lowered by TapirToTarget before inlining.  Skip them here so they are
+    // only inlined by the AlwaysInlinerPass that runs inside
+    // buildTapirLoweringPipeline (after TapirToTarget has run).
+    if (SkipOrphaning && F.hasFnAttribute(Attribute::Orphaning))
       continue;
 
     Calls.clear();
@@ -178,7 +186,7 @@ PreservedAnalyses AlwaysInlinerPass::run(Module &M,
   auto &PSI = MAM.getResult<ProfileSummaryAnalysis>(M);
 
   bool Changed = AlwaysInlineImpl(M, InsertLifetime, PSI, &FAM,
-                                  GetAssumptionCache, GetAAR);
+                                  GetAssumptionCache, GetAAR, SkipOrphaning);
   if (!Changed)
     return PreservedAnalyses::all();
 

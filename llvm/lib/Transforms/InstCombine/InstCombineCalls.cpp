@@ -3317,7 +3317,8 @@ Instruction *InstCombinerImpl::visitCallInst(CallInst &CI) {
       }
       // Check for any Tapir intrinsics using this syncregion.
       if (CallBase *CB = dyn_cast<CallBase>(U))
-        if (isSyncUnwind(CB) || isDetachedRethrow(CB)) {
+        if (isSyncUnwind(CB) || isDetachedRethrow(CB) ||
+            isTapirIntrinsic(Intrinsic::orphaning_syncregion, CB)) {
           ++NumUsers;
           break;
         }
